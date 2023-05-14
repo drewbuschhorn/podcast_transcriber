@@ -2,6 +2,7 @@ import argparse
 import copy
 import logging
 import os
+import time
 from typing import Dict
 from dotenv import load_dotenv
 import openai
@@ -44,7 +45,7 @@ def fixup_with_backoff(**kwargs : Dict[str, str]):
     if chunks_of_less_than_size_x[len(chunks_of_less_than_size_x)-1] != current_chunk:
        chunks_of_less_than_size_x.append(current_chunk)
       
-    with open_file_wdirs(output_path +'/fixup.txt','w') as out:
+    with open_file_wdirs(output_path +'/fixup-'+str(int(time.time()))+'.txt','w') as out:
       for i in chunks_of_less_than_size_x:
         logging.info("sending to openai: \n" + str(i))
         use_prompt = copy.deepcopy(FIXUP_PROMPT)
