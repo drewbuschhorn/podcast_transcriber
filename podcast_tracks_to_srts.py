@@ -13,7 +13,7 @@ from tenacity import (
 from pydub import AudioSegment
 import logging
 
-from helper import confirm_action, sanitize_file_name
+from helper import confirm_action, open_file_wdirs, sanitize_file_name
 
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6), reraise=True)
 def transcription_with_backoff(**kwargs : Dict[str, str]):
@@ -35,16 +35,17 @@ def transcription_with_backoff(**kwargs : Dict[str, str]):
         continue
 
       count += 1
-      with open(audio_clip_path, 'rb') as file:
+      with open_file_wdirs(audio_clip_path, 'rb') as file:
         response = openai.Audio.transcribe(
           file=file,
           model="whisper-1",
           language="en",
           response_format=format
         )
-      with open(audio_clip_path +'.'+ format,'w',  encoding="utf-8") as out:
+      with open_file_wdirs(audio_clip_path +'.'+ format,'w',  encoding="utf-8") as out:
         out.write(response)
   except Exception as e:
+    logging.debug(e)
     raise e
 
 if __name__ == '__main__':
@@ -55,7 +56,7 @@ if __name__ == '__main__':
                                 ' transcription to SRT format. Note that the SRT format' +
                                 ' is frequently incorrect on timings and repetitions' +
                                 ' from OpenAI.',
-                    epilog='Run podcast_srt_to_transcript.py after completed')
+                    epilog='Run podcast_srts_to_transcript.py after completed')
     parser.add_argument('--file', metavar='-f', required=True,
                     help='file name of podcast file (to find working direction in output directoy)')
     parser.add_argument('--output', metavar='-o', default='output', required = False,
@@ -70,6 +71,6 @@ if __name__ == '__main__':
     confirm_action('This action will load a large number of files to OpenAI\'s whisper endpoint'
                    + ' automatically. This may be slow and expensive. Continue? [Y/N]: ')
     transcription_with_backoff(filename = sanitize_file_name(args.file), output_dir = args.output)
-    logging.debug(transcription_with_backoff.retry.statistics)
+    logging.info(transcription_with_backoff.retry.statistics)
 
     

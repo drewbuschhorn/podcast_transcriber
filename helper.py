@@ -18,3 +18,14 @@ def confirm_action(msg):
             return False
         else:
             print("Invalid input. Please enter 'y' or 'n'.")
+
+def open_file_wdirs(path, mode="wb", newline=None, encoding=None):
+    # Ensure the parent directory exists
+    dirname = os.path.dirname(path)
+    if (dirname):
+        os.makedirs(dirname, exist_ok=True)
+
+    # Open file for binary writing
+    file = open(path, mode, newline=newline, encoding=encoding)
+
+    return file

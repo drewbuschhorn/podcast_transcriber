@@ -14,7 +14,7 @@ from tenacity import (
 )  # for exponential backoff
 from pydub import AudioSegment
 
-from helper import confirm_action, sanitize_file_name
+from helper import confirm_action, open_file_wdirs, sanitize_file_name
 
 FIXUP_PROMPT = """
 Identify typos to correct in the following transcript of a podcast about the video game Dwarf Fortress. Make the corrections. Make the text more readable and natural. Do not change any content between '[' and ']'. Do not remove lines starting with '[interjection]'.
@@ -31,7 +31,7 @@ def fixup_with_backoff(**kwargs : Dict[str, str]):
     chunks_of_less_than_size_x = []
     
     line_chunks = []
-    with open(output_path +'/real.txt', 'r') as file:
+    with open_file_wdirs(output_path +'/real.txt', 'r') as file:
       line_chunks = file.readlines()
     
     current_chunk = ""
@@ -44,9 +44,9 @@ def fixup_with_backoff(**kwargs : Dict[str, str]):
     if chunks_of_less_than_size_x[len(chunks_of_less_than_size_x)-1] != current_chunk:
        chunks_of_less_than_size_x.append(current_chunk)
       
-    with open(output_path +'fixup.txt','w') as out:
+    with open_file_wdirs(output_path +'/fixup.txt','w') as out:
       for i in chunks_of_less_than_size_x:
-        logging.debug ("loop "+str(i[:100]))
+        logging.info("sending to openai: \n" + str(i))
         use_prompt = copy.deepcopy(FIXUP_PROMPT)
 
         response = openai.ChatCompletion.create(
@@ -64,7 +64,7 @@ def fixup_with_backoff(**kwargs : Dict[str, str]):
         out.flush()
        
   except Exception as e:
-    logging.debug (e)
+    logging.info (e)
     raise e
 
 if __name__ == '__main__':
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     openai.api_key = os.getenv('OPENAI_API_TOKEN')
     confirm_action('This action will load a large number of files to OpenAI\'s ChatGPT endpoint'
                    + ' automatically. This may be slow and expensive. Continue? [Y/N]: ')
-    fixup_with_backoff(output_path = args.output + sanitize_file_name(args.file))
-    logging.debug(fixup_with_backoff.retry.statistics)
+    fixup_with_backoff(output_path = args.output + '\\' + sanitize_file_name(args.file))
+    logging.info(fixup_with_backoff.retry.statistics)
 
   

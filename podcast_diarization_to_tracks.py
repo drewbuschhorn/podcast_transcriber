@@ -14,16 +14,17 @@ from dotenv import load_dotenv
 from pyannote.audio import Pipeline
 from pydub import AudioSegment
 
-from helper import sanitize_file_name
+from helper import open_file_wdirs, sanitize_file_name
 
 def do_diarization(filename, hf_token, output_dir, num_speakers = None):
     pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization", use_auth_token=hf_token)
     file_sub_directory_name = sanitize_file_name(filename)
     output_path = output_dir + '/' + file_sub_directory_name
+    os.makedirs(output_path, exist_ok=True)
 
     # 4. apply pretrained pipeline
     pipeline = pipeline.to(0) # Set to use first found CUDA GPU
-    with open(filename, 'rb') as file:
+    with open_file_wdirs(filename, 'rb') as file:
         diarization = pipeline(file, num_speakers=num_speakers)
         audio_file = AudioSegment.from_file(file)
 
@@ -40,7 +41,7 @@ def do_diarization(filename, hf_token, output_dir, num_speakers = None):
         audio_snippets.append((duration, speaker, start_ms, end_ms))
 
 
-    with open(output_path + "/durations_and_speakers.csv", "w", newline="") as csvfile:
+    with open_file_wdirs(output_path + "/durations_and_speakers.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Duration (s)", "Speaker", "start_ms", "end_ms"])
         for duration, speaker, start_ms, end_ms in audio_snippets:
@@ -49,9 +50,9 @@ def do_diarization(filename, hf_token, output_dir, num_speakers = None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-                    prog='podcast_diarization',
+                    prog='podcast_diarization_to_tracks',
                     description='Parses an MP3 file into separate speaker chunks'+
-                                ' by diarization. Generates a lot of of files in output/[input_file_name]/'+
+                                ' by diarization. Generates a lot of files in output/[input_file_name]/'+
                                 ' including a file durations_and_speakers.csv',
                     epilog='Run podcast_tracks_to_srts.py after completed')
     parser.add_argument('--file', metavar='-f', required=True,
