@@ -9,7 +9,10 @@ def sanitize_file_name(file_name):
     sanitized_name = sanitized_name.strip('_')
     return sanitized_name
 
-def confirm_action(msg):
+def confirm_action(msg, skip=False):
+    if skip:
+        return
+
     while True:
         user_input = input(msg)
         if user_input.lower() == "y":

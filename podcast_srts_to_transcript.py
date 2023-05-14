@@ -63,7 +63,7 @@ def create_script(output_path, speakers = []):
   results.sort(key=lambda x: x['parses']['start_ms'])
 
   # Read an SRT file
-  with open_file_wdirs(output_path + '/real.txt', 'w') as out:
+  with open_file_wdirs(output_path + '/real.txt', 'w', encoding="utf-8") as out:
     line_record = collections.deque([], maxlen=10)
     result_iterator = iter(results)
     for result in result_iterator:

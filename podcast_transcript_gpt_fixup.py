@@ -32,7 +32,7 @@ def fixup_with_backoff(**kwargs : Dict[str, str]):
     chunks_of_less_than_size_x = []
     
     line_chunks = []
-    with open_file_wdirs(output_path +'/real.txt', 'r') as file:
+    with open_file_wdirs(output_path +'/real.txt', 'r', encoding='utf-8') as file:
       line_chunks = file.readlines()
     
     current_chunk = ""
@@ -45,7 +45,7 @@ def fixup_with_backoff(**kwargs : Dict[str, str]):
     if chunks_of_less_than_size_x[len(chunks_of_less_than_size_x)-1] != current_chunk:
        chunks_of_less_than_size_x.append(current_chunk)
       
-    with open_file_wdirs(output_path +'/fixup-'+str(int(time.time()))+'.txt','w') as out:
+    with open_file_wdirs(output_path +'/fixup-'+str(int(time.time()))+'.txt','w', encoding='utf-8') as out:
       for i in chunks_of_less_than_size_x:
         logging.info("sending to openai: \n" + str(i))
         use_prompt = copy.deepcopy(FIXUP_PROMPT)
