@@ -6,7 +6,7 @@
 1. Get an API account with OpenAI, and make an API key. https://platform.openai.com/signup (No payment needed initially, about ~0.20c per podcast if all steps taken)
 1. Get an API account with HuggingFace and make an API key. https://huggingface.co/welcome (No payment)
 1. Cp .env.template to .env and set your API tokens.
-1. Follow https://github.com/pyannote/pyannote-audio#tldr- but skip the dev branch install (requirements.txt will handle that). This will have you activate some license agreements in HuggingFace.
+1. Follow https://github.com/pyannote/pyannote-audio#tldr- but skip the dev branch install (requirements.txt will handle that). This will have you activate some license agreements in HuggingFace. pyannote is the diarization (speaker separation) system that does all the magic.
 1. Run `pip install --upgrade pip` then `pip3 install -r requirements.txt`, this will take at least 1 GB of space of libraries.
 1. Assuming all of the above worked, verify you have CUDA available (nvidia gpu library), and that pytorch with CUDA has been installed. (Run `python torch_test.py` if you're unsure.)
 
