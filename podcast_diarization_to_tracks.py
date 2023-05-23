@@ -18,6 +18,7 @@ from pydub import AudioSegment
 from helper import crop, get_embeddings, open_file_wdirs, sanitize_file_name
 
 # Monkey patch class Audio for fix to https://github.com/pyannote/pyannote-audio/pull/1326/commits/8c238a5b199420c3ce3911a2d39ced3b9ca593e4
+# Terrible patching from helpers.py
 Audio.crop = crop
 SpeakerDiarization.get_embeddings = get_embeddings
 # end patch

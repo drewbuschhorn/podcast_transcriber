@@ -57,6 +57,7 @@ def confirm_action(msg, skip=False):
         if user_input.lower() == "y":
             return True
         elif user_input.lower() == "n":
+            exit()
             return False
         else:
             print("Invalid input. Please enter 'y' or 'n'.")
