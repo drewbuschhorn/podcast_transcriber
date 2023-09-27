@@ -38,6 +38,9 @@ if __name__ == '__main__':
     openai.api_key = os.getenv('OPENAI_API_TOKEN')
     hf_key = os.getenv('HUGGING_FACE_TOKEN')
 
+    print (openai.api_key)
+    print (hf_key)
+
     logging.info("do_diarization")
     do_diarization(args.file, hf_key, args.output, args.num_speakers)
     

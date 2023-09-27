@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from pyannote.audio import Pipeline, Audio
 from pyannote.audio.pipelines import SpeakerDiarization
 from pydub import AudioSegment
+import torch
 
 from helper import crop, get_embeddings, open_file_wdirs, sanitize_file_name
 
@@ -24,15 +25,18 @@ SpeakerDiarization.get_embeddings = get_embeddings
 # end patch
 
 def do_diarization(filename, hf_token, output_dir, num_speakers = None):
-    pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization", use_auth_token=hf_token)
+    pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.0", use_auth_token=hf_token)
     file_sub_directory_name = sanitize_file_name(filename)
     output_path = output_dir + '/' + file_sub_directory_name
     os.makedirs(output_path, exist_ok=True)
 
     # 4. apply pretrained pipeline
-    pipeline = pipeline.to(0) # Set to use first found CUDA GPU
+    device = torch.device("cuda:0")
+    pipeline = pipeline.to(device) # Set to use first found CUDA GPU
     with open_file_wdirs(filename, 'rb') as file:
+        logging.info(f"Sending {filename} to pipeline")
         diarization = pipeline(file, num_speakers=num_speakers)
+        logging.info(f"Sending {file} from file")
         audio_file = AudioSegment.from_file(file)
 
 
