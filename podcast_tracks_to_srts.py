@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 from typing import Dict
 from dotenv import load_dotenv
 import openai
@@ -15,7 +16,7 @@ import logging
 
 from helper import confirm_action, open_file_wdirs, sanitize_file_name
 
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6), reraise=True)
+@retry(wait=wait_random_exponential(min=2, max=60), stop=stop_after_attempt(6), reraise=True)
 def transcription_with_backoff(**kwargs : Dict[str, str]):
   output_path = kwargs['output_dir'] + '/' + kwargs['filename']
   try:
@@ -34,16 +35,25 @@ def transcription_with_backoff(**kwargs : Dict[str, str]):
       if duration < 0.15 or os.path.exists(audio_clip_path+'.'+format):
         continue
 
+      if count > 0 and count % 40 == 0:
+        time.sleep(60)
+        logging.info(f'Sleeping for 60 seconds to avoid OpenAI rate limits. Count: {count}')
       count += 1
-      with open_file_wdirs(audio_clip_path, 'rb') as file:
-        response = openai.Audio.transcribe(
-          file=file,
-          model="whisper-1",
-          language="en",
-          response_format=format
-        )
-      with open_file_wdirs(audio_clip_path +'.'+ format,'w',  encoding="utf-8") as out:
-        out.write(response)
+
+      try:
+        with open_file_wdirs(audio_clip_path, 'rb') as file:
+          response = openai.Audio.transcribe(
+            file=file,
+            model="whisper-1",
+            language="en",
+            response_format=format
+          )
+        with open_file_wdirs(audio_clip_path +'.'+ format,'w',  encoding="utf-8") as out:
+          out.write(response)
+      except openai.error.InvalidRequestError as e:
+        logging.error(f'InvalidRequestError: {e} + path: {audio_clip_path}')
+        continue
+
   except Exception as e:
     logging.debug(e)
     raise e

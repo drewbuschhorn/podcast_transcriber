@@ -3,7 +3,7 @@ wheel # Maybe needed?
 --extra-index-url https://download.pytorch.org/whl/cu117
 torch >= 2.0.0 #Make sure to get on cuda if you can
 # develop branch
-git+https://github.com/pyannote/pyannote-audio.git@31143e0d44116362432a338034c5f167bcea9a85
+git+https://github.com/pyannote/pyannote-audio.git@28fcf502db86747bafb126720d6b95d7c8277295
 
 pydub
 pysrt

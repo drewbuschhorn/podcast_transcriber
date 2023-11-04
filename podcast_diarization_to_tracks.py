@@ -30,8 +30,13 @@ def do_diarization(filename, hf_token, output_dir, num_speakers = None):
     output_path = output_dir + '/' + file_sub_directory_name
     os.makedirs(output_path, exist_ok=True)
 
+    for i in range(torch.cuda.device_count()):
+        print(f"{i}: {torch.cuda.get_device_name(i)}")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
     # 4. apply pretrained pipeline
-    device = torch.device("cuda:0")
     pipeline = pipeline.to(device) # Set to use first found CUDA GPU
     with open_file_wdirs(filename, 'rb') as file:
         logging.info(f"Sending {filename} to pipeline")
