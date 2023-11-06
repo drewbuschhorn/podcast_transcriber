@@ -10,11 +10,13 @@ import argparse
 import csv
 import logging
 import os, re
+from typing import Any, Text, Mapping, Optional
 from dotenv import load_dotenv
 from pyannote.audio import Pipeline, Audio
 from pyannote.audio.pipelines import SpeakerDiarization
 from pydub import AudioSegment
 import torch
+from tqdm import tqdm
 
 from helper import crop, get_embeddings, open_file_wdirs, sanitize_file_name
 
@@ -23,6 +25,38 @@ from helper import crop, get_embeddings, open_file_wdirs, sanitize_file_name
 Audio.crop = crop
 SpeakerDiarization.get_embeddings = get_embeddings
 # end patch
+
+class YourCustomHook:
+    def __init__(self):
+        self.progress_bar = tqdm(desc="Processing", ncols=100, unit="step")
+
+    def __call__(
+        self,
+        step_name: Text,
+        step_artifact: Any,
+        file: Optional[Mapping] = None,
+        total: Optional[int] = None,
+        completed: Optional[int] = None,
+    ):
+        # If 'total' is provided in one of the hook calls, update the progress bar's total
+        if total is not None and self.progress_bar.total is None:
+            self.progress_bar.total = total
+            self.progress_bar.refresh()
+
+        # Update the progress bar with the number of completed steps
+        if completed is not None:
+            self.progress_bar.update(completed - self.progress_bar.n)
+
+        # Optionally, you can also set post-fix information to display the current step name
+        self.progress_bar.set_postfix_str(f"Current step: {step_name}", refresh=True)
+        
+        if total == completed:
+            self.progress_bar.total = None
+            print (f"\n{step_name} completed\n")
+
+    def close(self):
+        # Close the progress bar once done
+        self.progress_bar.close()
 
 def do_diarization(filename, hf_token, output_dir, num_speakers = None):
     pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.0", use_auth_token=hf_token)
@@ -40,7 +74,7 @@ def do_diarization(filename, hf_token, output_dir, num_speakers = None):
     pipeline = pipeline.to(device) # Set to use first found CUDA GPU
     with open_file_wdirs(filename, 'rb') as file:
         logging.info(f"Sending {filename} to pipeline")
-        diarization = pipeline(file, num_speakers=num_speakers)
+        diarization = pipeline(file, num_speakers=num_speakers, hook=YourCustomHook())
         logging.info(f"Sending {file} from file")
         audio_file = AudioSegment.from_file(file)
 

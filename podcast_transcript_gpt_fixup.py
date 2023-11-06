@@ -28,7 +28,7 @@ Identify typos to correct in the following transcript of a podcast about the vid
 def fixup_with_backoff(**kwargs : Dict[str, str]):
   output_path = kwargs['output_path']
   try:
-    chunk_size = 2000
+    chunk_size = 4000
     chunks_of_less_than_size_x = []
     
     line_chunks = []
@@ -51,7 +51,7 @@ def fixup_with_backoff(**kwargs : Dict[str, str]):
         use_prompt = copy.deepcopy(FIXUP_PROMPT)
 
         response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4-1106-preview",
         temperature=0.2,
         messages=[
                 {"role": "user", 

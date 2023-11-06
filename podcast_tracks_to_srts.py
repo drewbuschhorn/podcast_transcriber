@@ -1,3 +1,4 @@
+
 import argparse
 import os
 import time
@@ -13,12 +14,21 @@ from tenacity import (
 )  # for exponential backoff
 from pydub import AudioSegment
 import logging
+import torch
+import whisper 
+from whisper.utils import get_writer
+from tqdm import tqdm
 
 from helper import confirm_action, open_file_wdirs, sanitize_file_name
+
+logging.basicConfig(level=args.loglevel)
+load_dotenv()
+openai.api_key = os.getenv('OPENAI_API_TOKEN')
 
 @retry(wait=wait_random_exponential(min=2, max=60), stop=stop_after_attempt(6), reraise=True)
 def transcription_with_backoff(**kwargs : Dict[str, str]):
   output_path = kwargs['output_dir'] + '/' + kwargs['filename']
+  use_open_ai = kwargs.get('use_open_ai', True)
   try:
     transcriptions = []
     files = []
@@ -29,30 +39,68 @@ def transcription_with_backoff(**kwargs : Dict[str, str]):
     if len(audio_clips) <= 1:
       raise RuntimeError('No files found to transcribe.')
 
-    for audio_clip_path in audio_clips:
-      audio = AudioSegment.from_file(audio_clip_path, format='mp3')
-      duration = len(audio) / 1000  # Convert milliseconds to seconds
-      if duration < 0.15 or os.path.exists(audio_clip_path+'.'+format):
-        continue
+    if use_open_ai is False:
+      print ("Not using OpenAI")
+      torch.cuda.init()
+      device = "cuda" # if torch.cuda.is_available() else "cpu"
+      print ("Using device:", device)
+      #load whisper model
+      model_size = "medium.en"
+      print("loading model :", model_size)
+      model = whisper.load_model(model_size).to(device)
+      print(model_size, "model loaded")
 
-      if count > 0 and count % 40 == 0:
-        time.sleep(60)
-        logging.info(f'Sleeping for 60 seconds to avoid OpenAI rate limits. Count: {count}')
-      count += 1
+    with tqdm(total=len(audio_clips), desc="Transcribing", unit="clip") as pbar:
+      for audio_clip_path in audio_clips:
+        if os.path.exists(audio_clip_path):
+          size = os.path.getsize(audio_clip_path)
+          logging.debug(f'File exists: {audio_clip_path} size: {size}')
+          if size < 1024:
+            pbar.update(1)
+            continue
+        else:
+          pbar.update(1)
+          continue
 
-      try:
-        with open_file_wdirs(audio_clip_path, 'rb') as file:
-          response = openai.Audio.transcribe(
-            file=file,
-            model="whisper-1",
-            language="en",
-            response_format=format
-          )
-        with open_file_wdirs(audio_clip_path +'.'+ format,'w',  encoding="utf-8") as out:
-          out.write(response)
-      except openai.error.InvalidRequestError as e:
-        logging.error(f'InvalidRequestError: {e} + path: {audio_clip_path}')
-        continue
+        audio = AudioSegment.from_file(audio_clip_path, format='mp3')
+        duration = len(audio) / 1000  # Convert milliseconds to seconds
+        if duration < 0.15 or os.path.exists(audio_clip_path+'.'+format):
+          pbar.update(1)
+          continue
+
+        if (use_open_ai):
+          if count > 0 and count % 40 == 0:
+            time.sleep(60)
+            logging.info(f'Sleeping for 60 seconds to avoid OpenAI rate limits. Count: {count}')
+          count += 1
+
+          try:
+            
+            with open_file_wdirs(audio_clip_path, 'rb') as file:
+              response = openai.Audio.transcribe(
+                file=file,
+                model="whisper-1",
+                language="en",
+                response_format=format
+              )
+            with open_file_wdirs(audio_clip_path +'.'+ format,'w',  encoding="utf-8") as out:
+              out.write(response)
+              pbar.update(1)
+          except openai.error.InvalidRequestError as e:
+            logging.error(f'InvalidRequestError: {e} + path: {audio_clip_path}')
+            pbar.update(1)
+            continue
+        
+        else:
+          with torch.cuda.device(device):
+            try:
+              result = model.transcribe(audio_clip_path, fp16=True)
+              writer = get_writer('srt', os.path.dirname(audio_clip_path))
+              writer(result, audio_clip_path +'.'+ format)
+              pbar.update(1)
+            except Exception as e:
+              logging.error(f'RuntimeError: {e}')
+              raise e
 
   except Exception as e:
     logging.debug(e)
@@ -71,16 +119,21 @@ if __name__ == '__main__':
                     help='file name of podcast file (to find working direction in output directoy)')
     parser.add_argument('--output', metavar='-o', default='output', required = False,
                     help='output directory to work in')
-    parser.add_argument('-l', '--loglevel', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+    parser.add_argument('--loglevel', metavar='-l', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                     default='INFO', help='Set the logging level')
+    parser.add_argument('--uselocal', action='store_true',
+                    help='Use OpenAI\'s whisper endpoint for transcription')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
-    load_dotenv()
-    
-    openai.api_key = os.getenv('OPENAI_API_TOKEN')
-    confirm_action('This action will load a large number of files to OpenAI\'s whisper endpoint'
-                   + ' automatically. This may be slow and expensive. Continue? [Y/N]: ')
-    transcription_with_backoff(filename = sanitize_file_name(args.file), output_dir = args.output)
+  
+    use_open_ai = not args.uselocal
+    if use_open_ai is True:
+      openai.api_key = os.getenv('OPENAI_API_TOKEN')
+      confirm_action('This action will load a large number of files to OpenAI\'s whisper endpoint'
+                    + ' automatically. This may be slow and expensive. Continue? [Y/N]: ')
+    else:
+      pass
+    transcription_with_backoff(filename = sanitize_file_name(args.file), output_dir = args.output, use_open_ai = use_open_ai)
     logging.info(transcription_with_backoff.retry.statistics)
 
     
